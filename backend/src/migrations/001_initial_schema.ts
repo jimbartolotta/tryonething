@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS coaches (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
+  password_hash TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
