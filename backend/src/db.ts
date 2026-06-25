@@ -59,7 +59,11 @@ export interface DBResult {
  */
 export function query(sql: string): Promise<DBResult> {
   try {
-    const output = execSync(`team-db "${sql.replace(/"/g, '\\"')}"`, {
+    // Escape: double quotes (SQL), backticks, and dollar signs (bash expansion)
+    const escaped = sql
+      .replace(/"/g, '\\"')
+      .replace(/\$/g, "\\$");
+    const output = execSync(`team-db "${escaped}"`, {
       encoding: "utf-8",
       maxBuffer: 10 * 1024 * 1024,
     });

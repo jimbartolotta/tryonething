@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import apiRouter from "./routes/api.js";
+import authRouter from "./routes/auth.js";
+import dashboardRouter from "./routes/dashboard.js";
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -12,6 +14,8 @@ app.use(express.json());
 
 // API routes
 app.use("/api", apiRouter);
+app.use("/api/auth", authRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 // Serve static frontend in production (built files)
 app.use(express.static("../frontend/dist"));
