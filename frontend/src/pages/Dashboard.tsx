@@ -20,6 +20,11 @@ interface DashboardData {
   clients: Client[];
 }
 
+function navigate(path: string) {
+  window.history.pushState({}, "", path);
+  window.dispatchEvent(new Event("popstate"));
+}
+
 export default function Dashboard() {
   const { coach, token, logout } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -27,6 +32,11 @@ export default function Dashboard() {
   const [showAddClient, setShowAddClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
+
+  // Start cycle state
+  const [startCycleFor, setStartCycleFor] = useState<string | null>(null);
+  const [newChange, setNewChange] = useState("");
+  const [startError, setStartError] = useState("");
 
   const fetchDashboard = async () => {
     try {
@@ -68,6 +78,31 @@ export default function Dashboard() {
       fetchDashboard();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleStartCycle = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!startCycleFor) return;
+    setStartError("");
+    try {
+      const res = await fetch("/api/cycles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ clientId: startCycleFor, change: newChange }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to start cycle");
+      }
+      setNewChange("");
+      setStartCycleFor(null);
+      fetchDashboard();
+    } catch (err) {
+      setStartError((err as Error).message);
     }
   };
 
@@ -119,6 +154,30 @@ export default function Dashboard() {
         </form>
       )}
 
+      {/* Start cycle form */}
+      {startCycleFor && (
+        <div style={{ marginBottom: 16, padding: 16, borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb" }}>
+          <p style={{ margin: "0 0 8px", fontWeight: 600, fontSize: 14 }}>
+            One change per cycle. What's the one thing?
+          </p>
+          <form onSubmit={handleStartCycle}>
+            <input
+              type="text"
+              placeholder='e.g. "Morning walk by 7am"'
+              value={newChange}
+              onChange={(e) => setNewChange(e.target.value)}
+              required
+              style={{ display: "block", width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #ddd", fontSize: 14, marginBottom: 8, boxSizing: "border-box" }}
+            />
+            {startError && <p style={{ color: "#dc2626", fontSize: 13, margin: "0 0 8px" }}>{startError}</p>}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="submit" style={saveBtnStyle}>Start Cycle</button>
+              <button onClick={() => { setStartCycleFor(null); setNewChange(""); setStartError(""); }} style={logoutBtnStyle}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Client list */}
       {data?.clients && data.clients.length > 0 ? (
         <div style={{ display: "grid", gap: 12 }}>
@@ -136,7 +195,10 @@ export default function Dashboard() {
                 </span>
               </div>
               {client.activeCycle ? (
-                <div style={{ marginTop: 12, padding: 12, background: "#f0fdf4", borderRadius: 6, border: "1px solid #bbf7d0" }}>
+                <div
+                  onClick={() => navigate(`/cycles/${client.activeCycle.id}`)}
+                  style={{ marginTop: 12, padding: 12, background: "#f0fdf4", borderRadius: 6, border: "1px solid #bbf7d0", cursor: "pointer" }}
+                >
                   <p style={{ margin: "0 0 4px", fontSize: 14, color: "#166534" }}>
                     <strong>Active cycle</strong> — {client.activeCycle.stage}
                   </p>
@@ -144,13 +206,16 @@ export default function Dashboard() {
                     {client.activeCycle.change}
                   </p>
                   <p style={{ margin: "4px 0 0", fontSize: 12, color: "#166534" }}>
-                    Check-ins: {client.activeCycle.checkInCount}
+                    Check-ins: {client.activeCycle.checkInCount} — Click to view
                   </p>
                 </div>
               ) : (
-                <p style={{ margin: "12px 0 0", fontSize: 13, color: "#999" }}>
-                  No active cycle — start one in the client detail view
-                </p>
+                <button
+                  onClick={() => setStartCycleFor(client.id)}
+                  style={startCycleBtnStyle}
+                >
+                  + Start New Cycle
+                </button>
               )}
             </div>
           ))}
@@ -163,7 +228,7 @@ export default function Dashboard() {
 
       {/* Footer */}
       <footer style={{ marginTop: 48, paddingTop: 16, borderTop: "1px solid #eee", fontSize: 12, color: "#999" }}>
-        <strong>Methodology:</strong> Commit → Track → Gauge → Verdict → Bank — Honest verdicts only.
+        <strong>Methodology:</strong> Commit → Track → Gauge → Verdict → Bank — Honest verdicts only. No streaks. No gamification.
       </footer>
     </div>
   );
@@ -205,4 +270,18 @@ const addBtnStyle: React.CSSProperties = {
 const saveBtnStyle: React.CSSProperties = {
   ...addBtnStyle,
   padding: "8px 20px",
+};
+
+const startCycleBtnStyle: React.CSSProperties = {
+  marginTop: 12,
+  padding: "10px 16px",
+  borderRadius: 6,
+  border: "1px dashed #1d4ed8",
+  background: "#f0f4ff",
+  color: "#1d4ed8",
+  cursor: "pointer",
+  fontSize: 14,
+  fontWeight: 500,
+  width: "100%",
+  textAlign: "center",
 };
